@@ -1,10 +1,15 @@
 import { Router } from "express";
-import { login } from "../controllers/auth.controller";
+
+import {
+    login,
+    changePasswordController,
+} from "../controllers/auth.controller";
+
 import { requireRole } from "../middleware/role.middleware";
 
 import {
     authenticateToken,
-    AuthenticatedRequest
+    AuthenticatedRequest,
 } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -28,6 +33,12 @@ router.get(
             user: req.user
         });
     }
+);
+
+router.put(
+    "/change-password",
+    authenticateToken,
+    changePasswordController
 );
 
 export default router;

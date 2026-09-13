@@ -20,12 +20,18 @@ export async function login(username: string, password: string) {
         throw new Error(data.message || "Login failed");
     }
 
-    await SecureStore.setItemAsync("auth_token", data.token);
+    // Store the NEW login session
+    await SecureStore.setItemAsync(
+        "auth_token",
+        data.token
+    );
 
     await SecureStore.setItemAsync(
         "auth_user",
         JSON.stringify(data.user)
     );
+
+    console.log("LOGIN USER:", data.user);
 
     return data.user;
 }

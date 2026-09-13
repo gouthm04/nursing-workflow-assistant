@@ -1,41 +1,56 @@
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useEffect } from "react";
+import { Alert, Text, View, StyleSheet } from "react-native";
 import { router } from "expo-router";
-import { logout } from "../services/auth";
+import { getStoredUser } from "../services/auth";
 
 export default function DashboardScreen() {
-    async function handleLogout() {
-        await logout();
+    useEffect(() => {
+        async function routeUser() {
+            const user = await getStoredUser();
 
-        Alert.alert(
-            "Logged out",
-            "You have been logged out successfully.",
-            [
-                {
-                    text: "OK",
-                    onPress: () => router.replace("/"),
-                },
-            ]
-        );
-    }
+            console.log("STORED USER:", user);
+
+            if (!user) {
+                router.replace("/");
+                return;
+            }
+
+            
+
+            switch (user.role) {
+                case "SUPER_ADMIN":
+                    router.replace("/admin-dashboard");
+                    break;
+
+                case "NURSE_SUPERVISOR":
+                    router.replace("/supervisor-dashboard");
+                    break;
+
+                case "RECEPTIONIST":
+                    router.replace("/reception-dashboard");
+                    break;
+
+                case "NURSE":
+                    router.replace("/nurse-dashboard");
+                    break;
+
+                default:
+                    Alert.alert(
+                        "Unknown Role",
+                        `Received role: ${user.role}`
+                    );
+                    router.replace("/");
+            }
+        }
+
+        routeUser();
+    }, []);
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>
-                Dashboard
+            <Text style={styles.text}>
+                Loading dashboard...
             </Text>
-
-            <Text style={styles.subtitle}>
-                You are successfully logged in.
-            </Text>
-
-            <TouchableOpacity
-                style={styles.logoutButton}
-                onPress={handleLogout}
-            >
-                <Text style={styles.logoutText}>
-                    Logout
-                </Text>
-            </TouchableOpacity>
         </View>
     );
 }
@@ -45,29 +60,9 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        padding: 24,
     },
 
-    title: {
-        fontSize: 28,
-        fontWeight: "bold",
-        marginBottom: 12,
-    },
-
-    subtitle: {
+    text: {
         fontSize: 16,
-        marginBottom: 30,
-    },
-
-    logoutButton: {
-        paddingHorizontal: 30,
-        paddingVertical: 12,
-        borderWidth: 1,
-        borderRadius: 8,
-    },
-
-    logoutText: {
-        fontSize: 16,
-        fontWeight: "bold",
     },
 });

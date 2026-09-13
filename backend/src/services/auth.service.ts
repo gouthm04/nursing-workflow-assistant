@@ -52,3 +52,40 @@ export async function loginUser(username: string, password: string) {
         }
     };
 }
+
+export async function changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string
+) {
+    const result = await pool.query(
+        `SELECT password_hash
+         FROM users
+         WHERE user_id = $1
+           AND is_active = TRUE`,
+        [userId]
+    );
+
+    if (result.rows.length === 0) {
+        throw new Error("User not found");
+    }
+
+    const passwordMatches = await bcrypt.compare(
+        currentPassword,
+        result.rows[0].password_hash
+    );
+
+    if (!passwordMatches) {
+        throw new Error("Current password is incorrect");
+    }
+
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+    await pool.query(
+        `UPDATE users
+         SET password_hash = $1,
+             must_change_password = FALSE
+         WHERE user_id = $2`,
+        [newPasswordHash, userId]
+    );
+}

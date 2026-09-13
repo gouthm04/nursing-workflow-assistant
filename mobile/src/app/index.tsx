@@ -52,6 +52,11 @@ export default function LoginScreen() {
 
             const user = await login(username, password);
 
+            if (user.must_change_password) {
+                router.replace("/change-password");
+                return;
+            }
+
             Alert.alert(
                 "Login successful",
                 `Welcome, ${user.full_name}`,
