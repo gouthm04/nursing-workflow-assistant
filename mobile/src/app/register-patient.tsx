@@ -111,30 +111,30 @@ export default function RegisterPatientScreen() {
   }
 
   function handleDateChange(
-    event: any,
-    selectedDate?: Date
-  ) {
-    setShowDatePicker(false);
+  event: any,
+  selectedDate?: Date
+) {
+  setShowDatePicker(false);
 
-    if (!selectedDate) {
-      return;
-    }
-
-    const today = new Date();
-
-    if (selectedDate > today) {
-      Alert.alert("Invalid date", "Date of birth cannot be in the future.");
-      return;
-    }
-
-    setDobDate(selectedDate);
-
-    const year = selectedDate.getFullYear();
-    const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
-    const day = String(selectedDate.getDate()).padStart(2, "0");
-
-    setDateOfBirth(`${year}-${month}-${day}`);
+  if (!selectedDate) {
+    return;
   }
+
+  const today = new Date();
+
+  if (selectedDate > today) {
+    Alert.alert("Invalid date", "Date of birth cannot be in the future.");
+    return;
+  }
+
+  setDobDate(selectedDate);
+
+  const year = selectedDate.getFullYear();
+  const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+  const day = String(selectedDate.getDate()).padStart(2, "0");
+
+  setDateOfBirth(`${year}-${month}-${day}`);
+}
 
   function validateForm(): string | null {
     if (!firstName.trim()) {
@@ -319,8 +319,8 @@ export default function RegisterPatientScreen() {
             mode="date"
             display="default"
             maximumDate={new Date()}
-            onChange={handleDateChange}
-          />
+            onValueChange={handleDateChange}
+        />
         )}
 
         <Text style={styles.label}>Gender</Text>
