@@ -1,4 +1,10 @@
-import { StyleSheet, Text, View } from "react-native";
+import {
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import { router } from "expo-router";
 import DashboardHeader from "../components/DashboardHeader";
 
 export default function ReceptionDashboard() {
@@ -14,6 +20,15 @@ export default function ReceptionDashboard() {
                 <Text style={styles.subtitle}>
                     Register and admit patients
                 </Text>
+
+                <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => router.push("/register-patient")}
+                >
+                    <Text style={styles.actionText}>
+                        Register / Admit Patient
+                    </Text>
+                </TouchableOpacity>
             </View>
         </View>
     );
@@ -39,5 +54,18 @@ const styles = StyleSheet.create({
 
     subtitle: {
         fontSize: 16,
+        marginBottom: 30,
+    },
+
+    actionButton: {
+        paddingHorizontal: 24,
+        paddingVertical: 14,
+        borderWidth: 1,
+        borderRadius: 8,
+    },
+
+    actionText: {
+        fontSize: 16,
+        fontWeight: "bold",
     },
 });
