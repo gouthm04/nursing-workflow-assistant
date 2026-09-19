@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import { createUser } from "../services/user.service";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
@@ -7,26 +7,26 @@ export async function createUserController(
     res: Response
 ) {
     try {
-        const { fullName, username, role, temporaryPassword } = req.body;
+        const { fullName, username, role } = req.body;
 
-        if (!fullName || !username || !role || !temporaryPassword) {
+        if (!fullName || !username || !role) {
             return res.status(400).json({
                 message:
-                    "Full name, username, role and temporary password are required"
+                    "Full name, username and role are required"
             });
         }
 
-        const createdUser = await createUser(
+        const result = await createUser(
             fullName,
             username,
             role,
-            temporaryPassword,
             req.user!.role
         );
 
         return res.status(201).json({
             message: "User created successfully",
-            user: createdUser
+            user: result.user,
+            temporaryPassword: result.temporaryPassword
         });
     } catch (error) {
         console.error("Create user error:", error);

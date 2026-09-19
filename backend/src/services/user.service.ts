@@ -1,11 +1,19 @@
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import pool from "../config/db";
+
+function generateTemporaryPassword(): string {
+    const randomPart = crypto
+        .randomBytes(8)
+        .toString("base64url");
+
+    return `Nur@${randomPart}`;
+}
 
 export async function createUser(
     fullName: string,
     username: string,
     role: string,
-    temporaryPassword: string,
     creatorRole: string
 ) {
     // Check whether the creator is allowed to create this role
@@ -38,6 +46,9 @@ export async function createUser(
     if (existingUser.rows.length > 0) {
         throw new Error("Username already exists");
     }
+
+    // Generate a temporary password on the server
+    const temporaryPassword = generateTemporaryPassword();
 
     // Hash the temporary password
     const passwordHash = await bcrypt.hash(
@@ -74,5 +85,8 @@ export async function createUser(
         ]
     );
 
-    return result.rows[0];
+    return {
+        user: result.rows[0],
+        temporaryPassword
+    };
 }
