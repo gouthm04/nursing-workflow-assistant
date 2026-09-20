@@ -36,8 +36,11 @@ export default function SupervisorDashboard() {
                         Create, view, activate and deactivate nurse accounts
                     </Text>
                 </Pressable>
-
-                <View style={styles.card}>
+                
+                <Pressable
+                    style={styles.card}
+                    onPress={() => router.push("/manage-wards")}
+                >
                     <Text style={styles.cardTitle}>
                         Manage Wards
                     </Text>
@@ -45,13 +48,14 @@ export default function SupervisorDashboard() {
                     <Text style={styles.cardDescription}>
                         Manage hospital wards
                     </Text>
+                </Pressable>
 
-                    <Text style={styles.comingSoon}>
-                        Coming soon
-                    </Text>
-                </View>
+                
 
-                <View style={styles.card}>
+                <Pressable
+                    style={styles.card}
+                    onPress={() => router.push("/manage-beds")}
+                >
                     <Text style={styles.cardTitle}>
                         Manage Beds
                     </Text>
@@ -59,11 +63,7 @@ export default function SupervisorDashboard() {
                     <Text style={styles.cardDescription}>
                         Manage bed availability and status
                     </Text>
-
-                    <Text style={styles.comingSoon}>
-                        Coming soon
-                    </Text>
-                </View>
+                </Pressable>
 
                 <View style={styles.card}>
                     <Text style={styles.cardTitle}>
