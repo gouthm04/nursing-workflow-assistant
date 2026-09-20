@@ -90,3 +90,49 @@ export async function createUser(
         temporaryPassword
     };
 }
+
+export async function getNurses() {
+    const result = await pool.query(
+        `SELECT
+            user_id,
+            username,
+            full_name,
+            role,
+            phone,
+            is_active,
+            must_change_password,
+            created_at
+         FROM users
+         WHERE role = 'NURSE'
+         ORDER BY full_name ASC`
+    );
+
+    return result.rows;
+}
+export async function updateNurseStatus(
+    nurseId: number,
+    isActive: boolean
+) {
+    const result = await pool.query(
+        `UPDATE users
+         SET is_active = $1
+         WHERE user_id = $2
+           AND role = 'NURSE'
+         RETURNING
+            user_id,
+            username,
+            full_name,
+            role,
+            phone,
+            is_active,
+            must_change_password,
+            created_at`,
+        [isActive, nurseId]
+    );
+
+    if (result.rows.length === 0) {
+        throw new Error("Nurse not found");
+    }
+
+    return result.rows[0];
+}

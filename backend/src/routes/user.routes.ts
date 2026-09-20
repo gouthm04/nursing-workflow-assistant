@@ -1,9 +1,26 @@
 import { Router } from "express";
-import { createUserController } from "../controllers/user.controller";
+import {
+    createUserController,
+    getNursesController,
+    updateNurseStatusController
+} from "../controllers/user.controller";
 import { authenticateToken } from "../middleware/auth.middleware";
 import { requireRole } from "../middleware/role.middleware";
 
 const router = Router();
+
+router.get(
+    "/nurses",
+    authenticateToken,
+    requireRole("NURSE_SUPERVISOR"),
+    getNursesController
+);
+router.patch(
+    "/:id/status",
+    authenticateToken,
+    requireRole("NURSE_SUPERVISOR"),
+    updateNurseStatusController
+);
 
 router.post(
     "/",

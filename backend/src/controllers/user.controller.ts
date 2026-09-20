@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { createUser } from "../services/user.service";
+import { createUser, getNurses, updateNurseStatus } from "../services/user.service";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
 export async function createUserController(
@@ -46,6 +46,72 @@ export async function createUserController(
                     message: error.message
                 });
             }
+        }
+
+        return res.status(500).json({
+            message: "Internal server error"
+        });
+    }
+}
+export async function getNursesController(
+    req: AuthenticatedRequest,
+    res: Response
+) {
+    try {
+        const nurses = await getNurses();
+
+        return res.status(200).json({
+            nurses
+        });
+    } catch (error) {
+        console.error("Get nurses error:", error);
+
+        return res.status(500).json({
+            message: "Internal server error"
+        });
+    }
+}
+export async function updateNurseStatusController(
+    req: AuthenticatedRequest,
+    res: Response
+) {
+    try {
+        const nurseId = Number(req.params.id);
+        const { isActive } = req.body;
+
+        if (!Number.isInteger(nurseId)) {
+            return res.status(400).json({
+                message: "Invalid nurse ID"
+            });
+        }
+
+        if (typeof isActive !== "boolean") {
+            return res.status(400).json({
+                message: "isActive must be a boolean"
+            });
+        }
+
+        const nurse = await updateNurseStatus(
+            nurseId,
+            isActive
+        );
+
+        return res.status(200).json({
+            message: isActive
+                ? "Nurse activated successfully"
+                : "Nurse deactivated successfully",
+            nurse
+        });
+    } catch (error) {
+        console.error("Update nurse status error:", error);
+
+        if (
+            error instanceof Error &&
+            error.message === "Nurse not found"
+        ) {
+            return res.status(404).json({
+                message: error.message
+            });
         }
 
         return res.status(500).json({
