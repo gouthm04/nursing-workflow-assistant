@@ -65,19 +65,21 @@ export default function SupervisorDashboard() {
                     </Text>
                 </Pressable>
 
-                <View style={styles.card}>
+                <Pressable
+                    style={styles.card}
+                    onPress={() => router.push("/weekly-roster")}
+                >
                     <Text style={styles.cardTitle}>
                         Weekly Roster
                     </Text>
 
-                    <Text style={styles.cardDescription}>
+                     <Text style={styles.cardDescription}>
                         Create and manage the weekly nurse roster
                     </Text>
 
-                    <Text style={styles.comingSoon}>
-                        Coming soon
-                    </Text>
-                </View>
+                </Pressable>
+
+                
             </ScrollView>
         </View>
     );
