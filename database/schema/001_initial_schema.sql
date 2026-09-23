@@ -113,6 +113,15 @@ CREATE TABLE admissions (
         FOREIGN KEY (created_by)
         REFERENCES users(user_id)
 );
+-- Prevent multiple active admissions from using the same bed
+CREATE UNIQUE INDEX uq_active_admission_per_bed
+ON admissions (bed_id)
+WHERE status IN ('ADMITTED', 'UNDER_CARE');
+
+-- Prevent a patient from having multiple active admissions
+CREATE UNIQUE INDEX uq_active_admission_per_patient
+ON admissions (patient_id)
+WHERE status IN ('ADMITTED', 'UNDER_CARE');
 
 -- SHIFTS
 CREATE TABLE shifts (

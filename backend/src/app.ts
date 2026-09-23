@@ -8,6 +8,7 @@
     import rosterRoutes from "./routes/roster.routes";
     import handoverRoutes from "./routes/handover.routes";
     import rosterOverrideRoutes from "./routes/rosterOverride.routes";
+    import nurseRoutes from "./routes/nurse.routes";
 
     const app = express();
 
@@ -22,6 +23,7 @@
     app.use("/api/beds", bedRoutes);
     app.use("/api/rosters", rosterRoutes);
     app.use("/api/roster-overrides", rosterOverrideRoutes);
+    app.use("/api/nurse", nurseRoutes);
 
     app.get("/", (req, res) => {
         res.json({
