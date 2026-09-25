@@ -25,6 +25,12 @@ import {
     getPatientClinicalEventsController,
 } from "../controllers/clinicalEvent.controller";
 
+import {
+    getActiveConsumablesController,
+    recordConsumableUsageController,
+    getPatientConsumableUsageController,
+} from "../controllers/consumable.controller";
+
 import { authenticateToken } from "../middleware/auth.middleware";
 import { requireRole } from "../middleware/role.middleware";
 
@@ -105,6 +111,27 @@ router.get(
     authenticateToken,
     requireRole("NURSE"),
     getPatientClinicalEventsController
+);
+
+router.get(
+    "/consumables",
+    authenticateToken,
+    requireRole("NURSE"),
+    getActiveConsumablesController
+);
+
+router.post(
+    "/patients/:admissionId/consumables",
+    authenticateToken,
+    requireRole("NURSE"),
+    recordConsumableUsageController
+);
+
+router.get(
+    "/patients/:admissionId/consumables",
+    authenticateToken,
+    requireRole("NURSE"),
+    getPatientConsumableUsageController
 );
 
 export default router;

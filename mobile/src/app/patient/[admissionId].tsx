@@ -575,6 +575,15 @@ export default function PatientWorkspaceScreen() {
                             )
                         }
                     />
+
+                    <ActionButton
+                        title="Consumables"
+                        onPress={() =>
+                            router.push(
+                                `/patient/${admissionId}/consumables`
+                            )
+                        }
+                    />
                 </View>
             </ScrollView>
         </View>
