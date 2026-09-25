@@ -552,9 +552,8 @@ export default function PatientWorkspaceScreen() {
                     <ActionButton
                         title="Medication Administration"
                         onPress={() =>
-                            Alert.alert(
-                                "Coming Soon",
-                                "Medication recording will be added later."
+                            router.push(
+                                `/patient/${admissionId}/medications`
                             )
                         }
                     />
@@ -562,9 +561,8 @@ export default function PatientWorkspaceScreen() {
                     <ActionButton
                         title="Nursing Notes"
                         onPress={() =>
-                            Alert.alert(
-                                "Coming Soon",
-                                "Nursing notes will be added later."
+                            router.push(
+                                `/patient/${admissionId}/nursing-notes`
                             )
                         }
                     />
@@ -572,9 +570,8 @@ export default function PatientWorkspaceScreen() {
                     <ActionButton
                         title="Clinical Events"
                         onPress={() =>
-                            Alert.alert(
-                                "Coming Soon",
-                                "Clinical events will be added later."
+                            router.push(
+                                `/patient/${admissionId}/clinical-events`
                             )
                         }
                     />

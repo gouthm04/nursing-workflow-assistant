@@ -187,9 +187,8 @@ export default function MyPatientsScreen() {
                                             styles.patientCard
                                         }
                                         onPress={() =>
-                                            Alert.alert(
-                                                "Coming Soon",
-                                                "Patient workspace will be added next."
+                                            router.push(
+                                                `/patient/${patient.admission_id}`
                                             )
                                         }
                                     >

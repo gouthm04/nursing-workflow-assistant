@@ -176,3 +176,113 @@ export async function getTodayPatients(nurseId: number) {
         admission_datetime: row.admission_datetime,
     }));
 }
+
+export async function getPatientWorkspace(
+    nurseId: number,
+    admissionId: number
+) {
+    const result = await pool.query(
+        `
+        SELECT
+            a.admission_id,
+            p.patient_id,
+            p.uhid,
+            p.first_name,
+            p.last_name,
+            p.date_of_birth::text AS date_of_birth,
+            p.gender,
+            p.contact_number,
+
+            a.chief_complaint,
+            a.status AS admission_status,
+            a.admission_datetime,
+
+            w.ward_id,
+            w.ward_name,
+
+            b.bed_id,
+            b.bed_number,
+
+            d.doctor_id,
+            d.full_name AS doctor_name
+
+        FROM admissions a
+
+        JOIN patients p
+            ON p.patient_id = a.patient_id
+
+        JOIN wards w
+            ON w.ward_id = a.ward_id
+
+        JOIN beds b
+            ON b.bed_id = a.bed_id
+
+        JOIN doctors d
+            ON d.doctor_id = a.doctor_id
+
+        WHERE
+            a.admission_id = $1
+
+            AND a.status IN ('ADMITTED', 'UNDER_CARE')
+
+            AND EXISTS (
+                SELECT 1
+                FROM roster_assignments ra
+
+                JOIN rosters r
+                    ON r.roster_id = ra.roster_id
+
+                LEFT JOIN LATERAL (
+                    SELECT
+                        replacement_nurse_id
+                    FROM roster_overrides
+                    WHERE assignment_id = ra.assignment_id
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                ) ro
+                    ON TRUE
+
+                WHERE
+                    (
+                        ra.nurse_id = $2
+                        OR ro.replacement_nurse_id = $2
+                    )
+
+                    AND ra.ward_id = a.ward_id
+                    AND ra.shift_date = CURRENT_DATE
+            )
+        `,
+        [admissionId, nurseId]
+    );
+
+    if (result.rows.length === 0) {
+        return null;
+    }
+
+    const row = result.rows[0];
+
+    return {
+        admission_id: Number(row.admission_id),
+        patient_id: Number(row.patient_id),
+
+        uhid: row.uhid,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        date_of_birth: row.date_of_birth,
+        gender: row.gender,
+        contact_number: row.contact_number,
+
+        chief_complaint: row.chief_complaint,
+        admission_status: row.admission_status,
+        admission_datetime: row.admission_datetime,
+
+        ward_id: Number(row.ward_id),
+        ward_name: row.ward_name,
+
+        bed_id: Number(row.bed_id),
+        bed_number: row.bed_number,
+
+        doctor_id: Number(row.doctor_id),
+        doctor_name: row.doctor_name,
+    };
+}
