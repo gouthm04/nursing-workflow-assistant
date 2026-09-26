@@ -31,6 +31,10 @@ import {
     getPatientConsumableUsageController,
 } from "../controllers/consumable.controller";
 
+import {
+    getPatientTimelineController,
+} from "../controllers/timeline.controller";
+
 import { authenticateToken } from "../middleware/auth.middleware";
 import { requireRole } from "../middleware/role.middleware";
 
@@ -132,6 +136,13 @@ router.get(
     authenticateToken,
     requireRole("NURSE"),
     getPatientConsumableUsageController
+);
+
+router.get(
+    "/patients/:admissionId/timeline",
+    authenticateToken,
+    requireRole("NURSE"),
+    getPatientTimelineController
 );
 
 export default router;

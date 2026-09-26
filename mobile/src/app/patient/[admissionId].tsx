@@ -535,6 +535,21 @@ export default function PatientWorkspaceScreen() {
 
                 <View style={styles.sectionCard}>
                     <Text style={styles.sectionTitle}>
+                        Patient Timeline
+                    </Text>
+
+                    <ActionButton
+                        title="View Patient Timeline"
+                        onPress={() =>
+                            router.push(
+                                `/patient/${admissionId}/timeline`
+                            )
+                        }
+                    />
+                </View>
+
+                <View style={styles.sectionCard}>
+                    <Text style={styles.sectionTitle}>
                         Nursing Care
                     </Text>
 
