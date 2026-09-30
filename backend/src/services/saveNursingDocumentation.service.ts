@@ -26,10 +26,11 @@ type SaveClinicalEvent = {
     description: string;
     immediate_action: string | null;
     doctor_notified: boolean;
+    doctor_id: number | null;
 };
 
 type SaveConsumable = {
-    name: string;
+    consumable_id: number;
     quantity: number;
     used_for_type: string | null;
 };
@@ -94,7 +95,52 @@ export async function saveNursingDocumentation(
             );
         }
 
-        const doctorId = accessResult.rows[0].doctor_id;
+
+        for (const event of data.clinical_events) {
+            if (event.doctor_notified && !event.doctor_id) {
+                throw new Error(
+                    "Doctor must be selected when a doctor is notified."
+                );
+            }
+
+            if (event.doctor_notified && event.doctor_id) {
+                const doctorResult = await client.query(
+                    `SELECT doctor_id
+                    FROM doctors
+                    WHERE doctor_id = $1
+                    AND is_active = TRUE`,
+                    [event.doctor_id]
+                );
+
+                if (doctorResult.rows.length === 0) {
+                    throw new Error(
+                        `Selected doctor is not available: ${event.doctor_id}`
+                    );
+                }
+            }
+        }
+
+        for (const consumable of data.consumables) {
+            const consumableResult = await client.query(
+                `SELECT consumable_id
+                FROM consumables
+                WHERE consumable_id = $1
+                AND is_active = TRUE`,
+                [consumable.consumable_id]
+            );
+
+            if (consumableResult.rows.length === 0) {
+                throw new Error(
+                    `Selected consumable is not available: ${consumable.consumable_id}`
+                );
+            }
+
+            if (consumable.quantity <= 0) {
+                throw new Error(
+                    "Consumable quantity must be greater than zero."
+                );
+            }
+        }
 
         // 2. Save vitals.
         for (const vital of data.vitals) {
@@ -290,84 +336,41 @@ export async function saveNursingDocumentation(
                     event.event_type.trim(),
                     event.description.trim(),
                     event.doctor_notified,
-                    event.doctor_notified ? doctorId : null,
-                    event.immediate_action?.trim() || null,
+                    event.doctor_notified
+                        ? event.doctor_id
+                        : null
+                    ,event.immediate_action?.trim() || null,
                 ]
             );
         }
 
         // 6. Save consumable usage.
         for (const consumable of data.consumables) {
-            if (
-                !consumable.name?.trim()
-            ) {
+            if (!consumable.consumable_id) {
                 throw new Error(
-                    "Consumable name is required"
+                    "Consumable must be selected."
                 );
             }
 
-            if (
-                typeof consumable.quantity !== "number" ||
-                !Number.isFinite(consumable.quantity) ||
-                consumable.quantity <= 0
-            ) {
+            if (consumable.quantity <= 0) {
                 throw new Error(
-                    "Consumable quantity must be greater than zero"
+                    "Consumable quantity must be greater than zero."
                 );
             }
 
-            // Resolve the AI-provided name to an actual
-            // active consumable in the database.
             const consumableResult = await client.query(
-                `
-                SELECT
-                    consumable_id
+                `SELECT consumable_id
                 FROM consumables
-                WHERE
-                    is_active = TRUE
-                    AND LOWER(name) = LOWER($1)
-                `,
-                [consumable.name.trim()]
+                WHERE consumable_id = $1
+                AND is_active = TRUE`,
+                [consumable.consumable_id]
             );
 
             if (consumableResult.rows.length === 0) {
                 throw new Error(
-                    `Consumable not found or inactive: ${consumable.name}`
+                    `Selected consumable is not available: ${consumable.consumable_id}`
                 );
             }
-
-            const consumableId =
-                consumableResult.rows[0].consumable_id;
-
-            await client.query(
-                `
-                INSERT INTO consumable_usage (
-                    admission_id,
-                    consumable_id,
-                    quantity,
-                    used_for_type,
-                    used_for_id,
-                    recorded_by,
-                    used_at
-                )
-                VALUES (
-                    $1,
-                    $2,
-                    $3,
-                    $4,
-                    NULL,
-                    $5,
-                    NOW()
-                )
-                `,
-                [
-                    admissionId,
-                    consumableId,
-                    consumable.quantity,
-                    consumable.used_for_type?.trim() || null,
-                    nurseId,
-                ]
-            );
         }
 
         await client.query("COMMIT");

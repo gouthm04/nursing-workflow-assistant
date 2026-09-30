@@ -43,6 +43,10 @@ import {
     saveNursingDocumentationController,
 } from "../controllers/saveNursingDocumentation.controller";
 
+import {
+    getActiveDoctorsController,
+} from "../controllers/doctor.controller";
+
 import { authenticateToken } from "../middleware/auth.middleware";
 import { requireRole } from "../middleware/role.middleware";
 
@@ -144,6 +148,13 @@ router.get(
     authenticateToken,
     requireRole("NURSE"),
     getPatientConsumableUsageController
+);
+
+router.get(
+    "/doctors",
+    authenticateToken,
+    requireRole("NURSE"),
+    getActiveDoctorsController
 );
 
 router.get(

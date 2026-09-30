@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect,  useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -43,6 +43,7 @@ type ClinicalEventDraft = {
     description: string;
     doctor_notified: boolean;
     doctor_name: string | null;
+    doctor_id: number | null;
     immediate_action: string | null;
     event_time_text: string | null;
     source_text: string;
@@ -50,9 +51,22 @@ type ClinicalEventDraft = {
 
 type ConsumableDraft = {
     name: string;
+    consumable_id: number | null;
     quantity: number;
     used_for_type: string | null;
     source_text: string;
+};
+
+type DoctorOption = {
+    doctor_id: number;
+    full_name: string;
+    specialization: string | null;
+};
+
+type ConsumableOption = {
+    consumable_id: number;
+    name: string;
+    unit: string;
 };
 
 type DocumentationDraft = {
@@ -62,6 +76,56 @@ type DocumentationDraft = {
     clinical_events: ClinicalEventDraft[];
     consumables: ConsumableDraft[];
 };
+
+function Dropdown({
+    value,
+    options,
+    placeholder,
+    onSelect,
+}: {
+    value: string;
+    options: string[];
+    placeholder: string;
+    onSelect: (value: string) => void;
+}) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <View>
+            <Pressable
+                style={styles.dropdown}
+                onPress={() => setOpen(!open)}
+            >
+                <Text style={styles.dropdownText}>
+                    {value || placeholder}
+                </Text>
+
+                <Text style={styles.dropdownArrow}>
+                    {open ? "▲" : "▼"}
+                </Text>
+            </Pressable>
+
+            {open && (
+                <View style={styles.dropdownOptions}>
+                    {options.map((option) => (
+                        <Pressable
+                            key={option}
+                            style={styles.dropdownOption}
+                            onPress={() => {
+                                onSelect(option);
+                                setOpen(false);
+                            }}
+                        >
+                            <Text style={styles.dropdownOptionText}>
+                                {option}
+                            </Text>
+                        </Pressable>
+                    ))}
+                </View>
+            )}
+        </View>
+    );
+}
 
 export default function DocumentationScreen() {
     const { admissionId } = useLocalSearchParams<{
@@ -74,6 +138,81 @@ export default function DocumentationScreen() {
     );
     const [editing, setEditing] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [doctors, setDoctors] = useState<DoctorOption[]>([]);
+    const [consumables, setConsumables] = useState<ConsumableOption[]>([]);
+    const [optionsLoading, setOptionsLoading] = useState(true);
+
+    async function loadOptions() {
+    try {
+        setOptionsLoading(true);
+
+        const token = await getStoredToken();
+
+        if (!token) {
+            Alert.alert(
+                "Authentication required",
+                "Please log in again."
+            );
+            return;
+        }
+
+        const [doctorsResponse, consumablesResponse] =
+            await Promise.all([
+                fetch(`${API_URL}/api/nurse/doctors`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }),
+
+                fetch(`${API_URL}/api/nurse/consumables`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }),
+            ]);
+
+        const doctorsData = await doctorsResponse.json();
+        const consumablesData =
+            await consumablesResponse.json();
+
+        if (!doctorsResponse.ok) {
+            throw new Error(
+                doctorsData.message ||
+                    "Failed to load doctors."
+            );
+        }
+
+        if (!consumablesResponse.ok) {
+            throw new Error(
+                consumablesData.message ||
+                    "Failed to load consumables."
+            );
+        }
+
+        setDoctors(doctorsData.doctors ?? []);
+        setConsumables(
+            consumablesData.consumables ?? []
+        );
+    } catch (error) {
+        console.error(
+            "Load documentation options error:",
+            error
+        );
+
+        Alert.alert(
+            "Error",
+            error instanceof Error
+                ? error.message
+                : "Failed to load documentation options."
+        );
+    } finally {
+        setOptionsLoading(false);
+    }
+}
+
+useEffect(() => {
+    loadOptions();
+}, []);
 
     async function generateDraft() {
         if (!text.trim()) {
@@ -122,8 +261,23 @@ export default function DocumentationScreen() {
                 );
             }
 
-            setDraft(data.draft);
-            setEditing(true);
+            setDraft({
+                ...data.draft,
+                clinical_events: data.draft.clinical_events.map(
+                    (event: ClinicalEventDraft) => ({
+                        ...event,
+                        doctor_id: null,
+                    })
+                ),
+                consumables: data.draft.consumables.map(
+                    (consumable: ConsumableDraft) => ({
+                        ...consumable,
+                        consumable_id: null,
+                    })
+                ),
+            });
+
+setEditing(true);
         } catch (error) {
             console.error(
                 "Documentation draft error:",
@@ -189,15 +343,32 @@ export default function DocumentationScreen() {
         }
     }
 
+    // Validate doctors for doctor-notification events.
+    for (const event of draft.clinical_events) {
+        if (event.doctor_notified && !event.doctor_id) {
+            Alert.alert(
+                "Doctor not selected",
+                `Please select a doctor for "${event.description}".`
+            );
+            return;
+        }
+    }
+
+
     // Validate consumables.
     for (const consumable of draft.consumables) {
-        if (
-            !consumable.name.trim() ||
-            consumable.quantity <= 0
-        ) {
+        if (!consumable.consumable_id) {
             Alert.alert(
-                "Invalid consumable",
-                "Please provide a consumable name and a quantity greater than zero."
+                "Consumable not selected",
+                `Please select a valid consumable for "${consumable.name}".`
+            );
+            return;
+        }
+
+        if (consumable.quantity <= 0) {
+            Alert.alert(
+                "Invalid consumable quantity",
+                "Please provide a quantity greater than zero."
             );
             return;
         }
@@ -259,30 +430,29 @@ export default function DocumentationScreen() {
 
                     clinical_events:
                         draft.clinical_events.map(
-                            (event) => ({
-                                event_type:
-                                    event.event_type.trim(),
-                                description:
-                                    event.description.trim(),
-                                immediate_action:
-                                    event.immediate_action?.trim() ||
-                                    null,
-                                doctor_notified:
-                                    event.doctor_notified,
-                            })
+                            (event) => (
+                                {
+                                    event_type: event.event_type.trim(),
+                                    description: event.description.trim(),
+                                    immediate_action:
+                                        event.immediate_action?.trim() || null,
+                                    doctor_notified:
+                                        event.doctor_notified,
+                                    doctor_id: event.doctor_id,
+                                }
+                            )
                         ),
 
                     consumables:
                         draft.consumables.map(
-                            (consumable) => ({
-                                name:
-                                    consumable.name.trim(),
-                                quantity:
-                                    consumable.quantity,
-                                used_for_type:
-                                    consumable.used_for_type?.trim() ||
-                                    null,
-                            })
+                            (consumable) => (
+                                {
+                                    consumable_id: consumable.consumable_id,
+                                    quantity: consumable.quantity,
+                                    used_for_type:
+                                        consumable.used_for_type?.trim() || null,
+                                }
+                            )
                         ),
                 }),
             }
@@ -765,10 +935,18 @@ export default function DocumentationScreen() {
                                 Doctor
                             </Text>
 
-                            <TextInput
-                                style={styles.editInput}
-                                value={event.doctor_name ?? ""}
-                                onChangeText={(value) => {
+                            <Dropdown
+                                value={event.doctor_id ? event.doctor_name ?? "" : ""}
+                                placeholder="Select doctor"
+                                options={doctors.map(
+                                    (doctor) => doctor.full_name
+                                )}
+                                onSelect={(value) => {
+                                    const selectedDoctor = doctors.find(
+                                        (doctor) =>
+                                            doctor.full_name === value
+                                    );
+
                                     const updated = {
                                         ...draft,
                                         clinical_events: [
@@ -778,10 +956,9 @@ export default function DocumentationScreen() {
 
                                     updated.clinical_events[index] = {
                                         ...updated.clinical_events[index],
-                                        doctor_name:
-                                            value === ""
-                                                ? null
-                                                : value,
+                                        doctor_name: value,
+                                        doctor_id:
+                                            selectedDoctor?.doctor_id ?? null,
                                     };
 
                                     setDraft(updated);
@@ -808,10 +985,21 @@ export default function DocumentationScreen() {
                                     Consumable
                                 </Text>
 
-                                <TextInput
-                                    style={styles.editInput}
-                                    value={consumable.name}
-                                    onChangeText={(value) => {
+                               <Dropdown
+                                    value={
+                                        consumable.consumable_id
+                                            ? consumable.name
+                                            : ""
+                                    }
+                                    placeholder="Select consumable"
+                                    options={consumables.map(
+                                        (item) => item.name
+                                    )}
+                                    onSelect={(value) => {
+                                        const selectedConsumable = consumables.find(
+                                            (item) => item.name === value
+                                        );
+
                                         const updated = {
                                             ...draft,
                                             consumables: [
@@ -822,6 +1010,8 @@ export default function DocumentationScreen() {
                                         updated.consumables[index] = {
                                             ...updated.consumables[index],
                                             name: value,
+                                            consumable_id:
+                                                selectedConsumable?.consumable_id ?? null,
                                         };
 
                                         setDraft(updated);
@@ -1064,5 +1254,47 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: "#555555",
         lineHeight: 20,
+    },
+    dropdown: {
+        borderWidth: 1,
+        borderColor: "#cccccc",
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 12,
+        backgroundColor: "#ffffff",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+
+    dropdownText: {
+        fontSize: 15,
+        color: "#222222",
+    },
+
+    dropdownArrow: {
+        fontSize: 12,
+        color: "#555555",
+    },
+
+    dropdownOptions: {
+        borderWidth: 1,
+        borderColor: "#cccccc",
+        borderRadius: 8,
+        marginTop: 4,
+        backgroundColor: "#ffffff",
+        overflow: "hidden",
+    },
+
+    dropdownOption: {
+        paddingHorizontal: 10,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: "#eeeeee",
+    },
+
+    dropdownOptionText: {
+        fontSize: 15,
+        color: "#222222",
     },
 });
