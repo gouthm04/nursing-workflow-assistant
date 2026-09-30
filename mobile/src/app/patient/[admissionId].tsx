@@ -550,6 +550,21 @@ export default function PatientWorkspaceScreen() {
 
                 <View style={styles.sectionCard}>
                     <Text style={styles.sectionTitle}>
+                        AI Documentation
+                    </Text>
+
+                    <ActionButton
+                        title="Create Documentation Draft"
+                        onPress={() =>
+                            router.push(
+                                `/patient/${admissionId}/documentation`
+                            )
+                        }
+                    />
+                </View>
+
+                <View style={styles.sectionCard}>
+                    <Text style={styles.sectionTitle}>
                         Nursing Care
                     </Text>
 

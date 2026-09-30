@@ -35,6 +35,14 @@ import {
     getPatientTimelineController,
 } from "../controllers/timeline.controller";
 
+import {
+    parseNursingDocumentationController
+} from "../controllers/aiDocumentation.controller";
+
+import {
+    saveNursingDocumentationController,
+} from "../controllers/saveNursingDocumentation.controller";
+
 import { authenticateToken } from "../middleware/auth.middleware";
 import { requireRole } from "../middleware/role.middleware";
 
@@ -143,6 +151,21 @@ router.get(
     authenticateToken,
     requireRole("NURSE"),
     getPatientTimelineController
+);
+
+
+router.post(
+    "/documentation/parse",
+    authenticateToken,
+    requireRole("NURSE"),
+    parseNursingDocumentationController
+);
+
+router.post(
+    "/documentation/save/:admissionId",
+    authenticateToken,
+    requireRole("NURSE"),
+    saveNursingDocumentationController
 );
 
 export default router;
