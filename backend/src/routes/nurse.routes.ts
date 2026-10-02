@@ -47,6 +47,11 @@ import {
     getActiveDoctorsController,
 } from "../controllers/doctor.controller";
 
+import { audioUpload } from "../middleware/audioUpload";
+import {
+    transcribeAudioController,
+} from "../controllers/speechToText.controller";
+
 import { authenticateToken } from "../middleware/auth.middleware";
 import { requireRole } from "../middleware/role.middleware";
 
@@ -177,6 +182,14 @@ router.post(
     authenticateToken,
     requireRole("NURSE"),
     saveNursingDocumentationController
+);
+
+router.post(
+    "/documentation/transcribe",
+    authenticateToken,
+    requireRole("NURSE"),
+    audioUpload.single("audio"),
+    transcribeAudioController
 );
 
 export default router;
