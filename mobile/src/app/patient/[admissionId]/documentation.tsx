@@ -25,7 +25,7 @@ import { fetch as expoFetch } from "expo/fetch";
 import { router, useLocalSearchParams } from "expo-router";
 import { getStoredToken } from "../../../services/auth";
 
-const API_URL = "http://localhost:3000";
+import { API_URL } from "../../../constants/api";
 
 type VitalDraft = {
   systolic_bp: number | null;
@@ -202,7 +202,7 @@ export default function DocumentationScreen() {
       formData.append("audio", audioFile);
 
       const response = await expoFetch(
-        "http://192.168.20.4:3000/api/nurse/documentation/transcribe",
+        `${API_URL}/api/nurse/documentation/transcribe`,
         {
           method: "POST",
           headers: {

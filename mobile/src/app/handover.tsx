@@ -11,7 +11,7 @@ import {
 import { router } from "expo-router";
 import { getStoredToken } from "../services/auth";
 
-const API_URL = "http://192.168.20.4:3000";
+import { API_URL } from "../constants/api";
 
 type Patient = {
   admission_id: number;

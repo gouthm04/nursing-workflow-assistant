@@ -1,6 +1,5 @@
 import * as SecureStore from "expo-secure-store";
-
-const API_URL = "http://localhost:3000";
+import { API_URL } from "../constants/api";
 
 export async function login(username: string, password: string) {
     const response = await fetch(`${API_URL}/api/auth/login`, {

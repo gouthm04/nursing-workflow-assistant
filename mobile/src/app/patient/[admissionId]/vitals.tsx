@@ -14,7 +14,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { getStoredToken } from "../../../services/auth";
 
-const API_URL = "http://localhost:3000";
+import { API_URL } from "../../../constants/api";
 
 export default function RecordVitalsScreen() {
     const { admissionId } = useLocalSearchParams<{

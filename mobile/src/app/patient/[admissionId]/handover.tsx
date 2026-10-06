@@ -12,8 +12,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { getStoredToken } from "../../../services/auth";
 
-//const API_URL = "http://192.168.20.4:3000";
-const API_URL = "http://10.0.2.2:3000";
+import { API_URL } from "../../../constants/api";
 
 type HandoverRecipient = {
   admission_id: number;

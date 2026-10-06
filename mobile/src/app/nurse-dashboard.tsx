@@ -12,8 +12,7 @@ import { router } from "expo-router";
 import DashboardHeader from "../components/DashboardHeader";
 import { getStoredToken, getStoredUser } from "../services/auth";
 
-//const API_URL = "http://localhost:3000";
-const API_URL = "http://10.0.2.2:3000";
+import { API_URL } from "../constants/api";
 
 type Assignment = {
   assignment_id: number;

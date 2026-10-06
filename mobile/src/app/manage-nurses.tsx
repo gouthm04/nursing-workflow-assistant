@@ -13,7 +13,7 @@ import { router } from "expo-router";
 import DashboardHeader from "../components/DashboardHeader";
 import { getStoredToken } from "../services/auth";
 
-const API_URL = "http://localhost:3000";
+import { API_URL } from "../constants/api";
 
 type Nurse = {
     user_id: string;
