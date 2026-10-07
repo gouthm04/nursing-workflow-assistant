@@ -10,11 +10,82 @@ const groq = new OpenAI({
 
 const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
 
+async function authorizeHandoverNurse(
+  admissionId: number,
+  nurseId: number,
+  shiftId: number,
+  shiftDate: string,
+) {
+  const result = await pool.query(
+    `
+    SELECT
+        a.admission_id,
+        a.ward_id,
+        ra.assignment_id
+    FROM admissions a
+
+    JOIN roster_assignments ra
+        ON ra.ward_id = a.ward_id
+
+    JOIN rosters r
+        ON r.roster_id = ra.roster_id
+
+    LEFT JOIN LATERAL (
+        SELECT
+            replacement_nurse_id
+        FROM roster_overrides
+        WHERE assignment_id = ra.assignment_id
+        ORDER BY created_at DESC
+        LIMIT 1
+    ) ro
+        ON TRUE
+
+    WHERE
+        a.admission_id = $1
+
+        AND a.status IN ('ADMITTED', 'UNDER_CARE')
+
+        AND (
+            ra.nurse_id = $2
+            OR ro.replacement_nurse_id = $2
+        )
+
+        AND ra.shift_id = $3
+        AND ra.shift_date = $4
+        AND r.status = 'PUBLISHED'
+
+    LIMIT 1
+    `,
+    [admissionId, nurseId, shiftId, shiftDate]
+  );
+
+  if (result.rows.length === 0) {
+    throw new Error(
+      "You are not authorized for this patient's handover during the selected shift."
+    );
+  }
+
+  return {
+    admission_id: Number(result.rows[0].admission_id),
+    ward_id: Number(result.rows[0].ward_id),
+    assignment_id: Number(result.rows[0].assignment_id),
+  };
+}
+
 export async function getHandoverRecipient(
   admissionId: number,
+  nurseId: number,
   currentShiftId: number,
   currentShiftDate: string,
 ) {
+
+  await authorizeHandoverNurse(
+    admissionId,
+    nurseId,
+    currentShiftId,
+    currentShiftDate
+  );
+
   const admissionResult = await pool.query(
     `SELECT
             a.admission_id,
@@ -54,6 +125,8 @@ export async function getHandoverRecipient(
     is_override: nextNurse.is_override,
   };
 }
+
+
 
 const SBAR_SYSTEM_INSTRUCTIONS = `
 You are the SBAR generation component of NurA, a nursing workflow and shift handover assistant.
@@ -255,6 +328,7 @@ const SBAR_SCHEMA = {
 
 export async function generateHandoverDraft(
   admissionId: number,
+  nurseId: number,
   currentShiftId: number,
   currentShiftDate: string,
 ) {
@@ -374,11 +448,19 @@ export async function generateHandoverDraft(
     [admissionId],
   );
 
-  const recipient = await getHandoverRecipient(
-    admissionId,
-    currentShiftId,
-    currentShiftDate,
-  );
+await authorizeHandoverNurse(
+  admissionId,
+  nurseId,
+  currentShiftId,
+  currentShiftDate
+);
+
+const recipient = await getHandoverRecipient(
+  admissionId,
+  nurseId,
+  currentShiftId,
+  currentShiftDate,
+);
 
   const sourceData = {
     patient: {
@@ -479,11 +561,19 @@ export async function saveHandover(
     recommendation: string;
   },
 ) {
-  const recipient = await getHandoverRecipient(
-    admissionId,
-    currentShiftId,
-    currentShiftDate,
-  );
+  await authorizeHandoverNurse(
+  admissionId,
+  currentNurseId,
+  currentShiftId,
+  currentShiftDate
+);
+
+const recipient = await getHandoverRecipient(
+  admissionId,
+  currentNurseId,
+  currentShiftId,
+  currentShiftDate,
+);
 
   if (recipient.incoming_nurse_id === currentNurseId) {
     throw new Error(
@@ -506,6 +596,18 @@ export async function saveHandover(
   }
 
   const shift = shiftResult.rows[0];
+
+  const shiftStart = new Date(
+  `${currentShiftDate}T${shift.start_time}Z`
+);
+
+const shiftEnd = new Date(
+  `${currentShiftDate}T${shift.end_time}Z`
+);
+
+if (shiftEnd <= shiftStart) {
+  shiftEnd.setUTCDate(shiftEnd.getUTCDate() + 1);
+}
 
   const client = await pool.connect();
 
@@ -542,8 +644,8 @@ export async function saveHandover(
         admissionId,
         currentNurseId,
         recipient.incoming_nurse_id,
-        `${currentShiftDate} ${shift.start_time}`,
-        `${currentShiftDate} ${shift.end_time}`,
+        shiftStart,
+        shiftEnd,
       ],
     );
 

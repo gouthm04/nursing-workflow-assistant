@@ -7,15 +7,25 @@ import {
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
 export async function getHandoverRecipientController(
-    req: Request,
+    req: AuthenticatedRequest,
     res: Response
 ) {
     try {
         const admissionId = Number(req.params.admissionId);
         const currentShiftId = Number(req.query.shiftId);
         const currentShiftDate = String(req.query.shiftDate);
-
+        const currentNurseId = Number(req.user?.user_id);
         if (
+            !Number.isInteger(admissionId) ||
+            !Number.isInteger(currentShiftId) ||
+            !currentShiftDate ||
+            !Number.isInteger(currentNurseId)
+        ) {
+            return res.status(400).json({
+                message: "Invalid admission, shift, date, or nurse"
+            });
+        }
+                if (
             !Number.isInteger(admissionId) ||
             !Number.isInteger(currentShiftId) ||
             !currentShiftDate
@@ -27,6 +37,7 @@ export async function getHandoverRecipientController(
 
         const recipient = await getHandoverRecipient(
             admissionId,
+            currentNurseId,
             currentShiftId,
             currentShiftDate
         );
@@ -47,13 +58,25 @@ export async function getHandoverRecipientController(
 }
 
 export async function generateHandoverDraftController(
-    req: Request,
+    req: AuthenticatedRequest,
     res: Response
 ) {
     try {
         const admissionId = Number(req.params.admissionId);
         const currentShiftId = Number(req.body.shiftId);
         const currentShiftDate = String(req.body.shiftDate);
+        const currentNurseId = Number(req.user?.user_id);
+
+        if (
+            !Number.isInteger(admissionId) ||
+            !Number.isInteger(currentShiftId) ||
+            !currentShiftDate ||
+            !Number.isInteger(currentNurseId)
+        ) {
+            return res.status(400).json({
+                message: "Invalid admission, shift, date, or nurse.",
+            });
+        }
 
         if (
             !Number.isInteger(admissionId) ||
@@ -67,6 +90,7 @@ export async function generateHandoverDraftController(
 
         const result = await generateHandoverDraft(
             admissionId,
+            currentNurseId,
             currentShiftId,
             currentShiftDate
         );
