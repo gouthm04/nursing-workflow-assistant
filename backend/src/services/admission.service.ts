@@ -112,7 +112,9 @@ export async function createAdmission(
         const bed = bedResult.rows[0];
 
         if (String(bed.ward_id) !== String(data.wardId)) {
-            throw new Error("Selected bed does not belong to the selected ward");
+            throw new Error(
+                "Selected bed does not belong to the selected ward"
+            );
         }
 
         if (bed.status !== "AVAILABLE") {
@@ -147,7 +149,7 @@ export async function createAdmission(
 
         const patientId = patientResult.rows[0].patient_id;
 
-        // 5. Replace temporary UHID with a permanent generated UHID
+        // 5. Replace temporary UHID with permanent generated UHID
         const uhid = `UHID${String(patientId).padStart(6, "0")}`;
 
         await client.query(
@@ -221,6 +223,194 @@ export async function createAdmission(
             patientId,
             uhid,
             admissionId,
+        };
+    } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+
+/* =========================================================
+   ACTIVE ADMISSIONS
+   ========================================================= */
+
+export async function getActiveAdmissions() {
+    const result = await pool.query(
+        `
+        SELECT
+            a.admission_id,
+            p.patient_id,
+            p.uhid,
+            p.first_name,
+            p.last_name,
+            p.gender,
+            p.date_of_birth::text AS date_of_birth,
+
+            a.status,
+            a.admission_datetime,
+            a.chief_complaint,
+
+            d.doctor_id,
+            d.full_name AS doctor_name,
+
+            w.ward_id,
+            w.ward_name,
+
+            b.bed_id,
+            b.bed_number
+
+        FROM admissions a
+
+        JOIN patients p
+            ON p.patient_id = a.patient_id
+
+        JOIN doctors d
+            ON d.doctor_id = a.doctor_id
+
+        JOIN wards w
+            ON w.ward_id = a.ward_id
+
+        JOIN beds b
+            ON b.bed_id = a.bed_id
+
+        WHERE a.status IN ('ADMITTED', 'UNDER_CARE')
+
+        ORDER BY
+            a.admission_datetime DESC
+        `
+    );
+
+    return result.rows.map((row) => ({
+        admission_id: Number(row.admission_id),
+        patient_id: Number(row.patient_id),
+
+        uhid: row.uhid,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        gender: row.gender,
+        date_of_birth: row.date_of_birth,
+
+        status: row.status,
+        admission_datetime: row.admission_datetime,
+        chief_complaint: row.chief_complaint,
+
+        doctor_id: Number(row.doctor_id),
+        doctor_name: row.doctor_name,
+
+        ward_id: Number(row.ward_id),
+        ward_name: row.ward_name,
+
+        bed_id: Number(row.bed_id),
+        bed_number: row.bed_number,
+    }));
+}
+
+
+/* =========================================================
+   DISCHARGE
+   ========================================================= */
+
+export async function dischargeAdmission(admissionId: number) {
+    const client = await pool.connect();
+
+    try {
+        await client.query("BEGIN");
+
+        // Lock the admission so two discharge requests
+        // cannot modify it simultaneously.
+        const admissionResult = await client.query(
+            `
+            SELECT
+                admission_id,
+                patient_id,
+                bed_id,
+                status
+            FROM admissions
+            WHERE admission_id = $1
+            FOR UPDATE
+            `,
+            [admissionId]
+        );
+
+        if (admissionResult.rows.length === 0) {
+            throw new Error("Admission not found");
+        }
+
+        const admission = admissionResult.rows[0];
+
+        if (
+            admission.status !== "ADMITTED" &&
+            admission.status !== "UNDER_CARE"
+        ) {
+            throw new Error("Patient is already discharged");
+        }
+
+        // Lock the bed as well.
+        const bedResult = await client.query(
+            `
+            SELECT
+                bed_id,
+                status
+            FROM beds
+            WHERE bed_id = $1
+            FOR UPDATE
+            `,
+            [admission.bed_id]
+        );
+
+        if (bedResult.rows.length === 0) {
+            throw new Error("Admission bed not found");
+        }
+
+        const bed = bedResult.rows[0];
+
+        if (bed.status !== "OCCUPIED") {
+            throw new Error(
+                "Admission bed is not currently marked as occupied"
+            );
+        }
+
+        // Mark admission as discharged.
+        const updatedAdmission = await client.query(
+            `
+            UPDATE admissions
+            SET
+                status = 'DISCHARGED',
+                discharge_datetime = NOW()
+            WHERE admission_id = $1
+            RETURNING
+                admission_id,
+                patient_id,
+                bed_id,
+                status,
+                discharge_datetime
+            `,
+            [admissionId]
+        );
+
+        // Release the bed.
+        await client.query(
+            `
+            UPDATE beds
+            SET status = 'AVAILABLE'
+            WHERE bed_id = $1
+            `,
+            [admission.bed_id]
+        );
+
+        await client.query("COMMIT");
+
+        const result = updatedAdmission.rows[0];
+
+        return {
+            admission_id: Number(result.admission_id),
+            patient_id: Number(result.patient_id),
+            bed_id: Number(result.bed_id),
+            status: result.status,
+            discharge_datetime: result.discharge_datetime,
         };
     } catch (error) {
         await client.query("ROLLBACK");
