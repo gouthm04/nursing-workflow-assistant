@@ -5,8 +5,7 @@ import {
     createRosterAssignment,
     getRosterById,
     getRosters,
-
-
+    publishRoster,
 } from "../services/roster.service";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
@@ -202,6 +201,51 @@ export async function getRostersController(
 
         return res.status(500).json({
             message: "Failed to retrieve rosters"
+        });
+    }
+}
+
+export async function publishRosterController(
+    req: AuthenticatedRequest,
+    res: Response
+) {
+    try {
+        const rosterId = Number(req.params.id);
+
+        if (!Number.isInteger(rosterId)) {
+            return res.status(400).json({
+                message: "Invalid roster ID"
+            });
+        }
+
+        const roster = await publishRoster(rosterId);
+
+        return res.status(200).json({
+            message: "Roster published successfully",
+            roster
+        });
+
+    } catch (error) {
+        const message =
+            error instanceof Error
+                ? error.message
+                : "Failed to publish roster";
+
+        if (
+            message === "Roster not found" ||
+            message === "Only DRAFT rosters can be published" ||
+            message ===
+                "Cannot publish a roster without assignments"
+        ) {
+            return res.status(400).json({
+                message
+            });
+        }
+
+        console.error("Publish roster error:", error);
+
+        return res.status(500).json({
+            message: "Internal server error"
         });
     }
 }

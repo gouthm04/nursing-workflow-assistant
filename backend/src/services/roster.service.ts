@@ -663,6 +663,83 @@ export async function getRosters() {
     return result.rows;
 }
 
+export async function publishRoster(rosterId: number) {
+    const client = await pool.connect();
+
+    try {
+        await client.query("BEGIN");
+
+        // 1. Get the roster and lock it
+        const rosterResult = await client.query(
+            `SELECT
+                roster_id,
+                week_start_date::text AS week_start_date,
+                week_end_date::text AS week_end_date,
+                status
+             FROM rosters
+             WHERE roster_id = $1
+             FOR UPDATE`,
+            [rosterId]
+        );
+
+        if (rosterResult.rows.length === 0) {
+            throw new Error("Roster not found");
+        }
+
+        const roster = rosterResult.rows[0];
+
+        // 2. Only DRAFT rosters can be published
+        if (roster.status !== "DRAFT") {
+            throw new Error(
+                "Only DRAFT rosters can be published"
+            );
+        }
+
+        // 3. Make sure the roster has assignments
+        const assignmentResult = await client.query(
+            `SELECT COUNT(*) AS assignment_count
+             FROM roster_assignments
+             WHERE roster_id = $1`,
+            [rosterId]
+        );
+
+        const assignmentCount = Number(
+            assignmentResult.rows[0].assignment_count
+        );
+
+        if (assignmentCount === 0) {
+            throw new Error(
+                "Cannot publish a roster without assignments"
+            );
+        }
+
+        // 4. Publish the roster
+        const updateResult = await client.query(
+            `UPDATE rosters
+             SET status = 'PUBLISHED'
+             WHERE roster_id = $1
+             RETURNING
+                roster_id,
+                week_start_date::text AS week_start_date,
+                week_end_date::text AS week_end_date,
+                created_by,
+                status,
+                created_at`,
+            [rosterId]
+        );
+
+        await client.query("COMMIT");
+
+        return updateResult.rows[0];
+
+    } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
 export async function createRosterOverride(
     assignmentId: number,
     replacementNurseId: number,

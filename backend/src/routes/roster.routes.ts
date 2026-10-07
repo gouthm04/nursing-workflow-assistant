@@ -5,7 +5,7 @@ import {
     createRosterAssignmentController,
     getRosterByIdController,
     getRostersController,
-
+    publishRosterController,
 } from "../controllers/roster.controller";
 import { authenticateToken } from "../middleware/auth.middleware";
 import { requireRole } from "../middleware/role.middleware";
@@ -24,6 +24,13 @@ router.get(
     authenticateToken,
     requireRole("NURSE_SUPERVISOR"),
     getShiftsController
+);
+
+router.post(
+    "/:id/publish",
+    authenticateToken,
+    requireRole("NURSE_SUPERVISOR"),
+    publishRosterController
 );
 
 router.get(

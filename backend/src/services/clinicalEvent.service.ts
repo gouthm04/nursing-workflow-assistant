@@ -49,6 +49,7 @@ export async function recordClinicalEvent(
                     )
 
                     AND ra.ward_id = a.ward_id
+                    AND r.status = 'PUBLISHED'
                     AND ra.shift_date = CURRENT_DATE
             )
         `,
@@ -176,6 +177,7 @@ export async function getPatientClinicalEvents(
                     )
 
                     AND ra.ward_id = a.ward_id
+                    AND r.status = 'PUBLISHED'
                     AND ra.shift_date = CURRENT_DATE
             )
         `,

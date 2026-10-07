@@ -50,6 +50,7 @@ export async function recordVitals(
                     )
 
                     AND ra.ward_id = a.ward_id
+                    AND r.status = 'PUBLISHED'
                     AND ra.shift_date = CURRENT_DATE
             )
         `,
@@ -163,6 +164,7 @@ export async function recordVitals(
                     )
 
                     AND ra.ward_id = a.ward_id
+                    AND r.status = 'PUBLISHED'
                     AND ra.shift_date = CURRENT_DATE
             )
         `,

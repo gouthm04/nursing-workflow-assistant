@@ -40,6 +40,7 @@ export async function getPatientTimeline(
                     )
 
                     AND ra.ward_id = a.ward_id
+                    AND r.status = 'PUBLISHED'
                     AND ra.shift_date = CURRENT_DATE
             )
         `,

@@ -68,6 +68,7 @@ export async function recordConsumableUsage(
                     )
 
                     AND ra.ward_id = a.ward_id
+                    AND r.status = 'PUBLISHED'
                     AND ra.shift_date = CURRENT_DATE
             )
         `,
@@ -199,6 +200,7 @@ export async function getPatientConsumableUsage(
                     )
 
                     AND ra.ward_id = a.ward_id
+                    AND r.status = 'PUBLISHED'
                     AND ra.shift_date = CURRENT_DATE
             )
         `,

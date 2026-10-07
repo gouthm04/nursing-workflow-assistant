@@ -48,6 +48,7 @@ export async function recordMedicationAdministration(
                     )
 
                     AND ra.ward_id = a.ward_id
+                    AND r.status = 'PUBLISHED'
                     AND ra.shift_date = CURRENT_DATE
             )
         `,
@@ -157,6 +158,7 @@ export async function getPatientMedicationAdministrations(
                     )
 
                     AND ra.ward_id = a.ward_id
+                    AND r.status = 'PUBLISHED'
                     AND ra.shift_date = CURRENT_DATE
             )
         `,

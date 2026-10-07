@@ -52,6 +52,7 @@ export async function getTodayAssignment(nurseId: number) {
                 ra.nurse_id = $1
                 OR ro.replacement_nurse_id = $1
             )
+            AND r.status = 'PUBLISHED'
             AND ra.shift_date = CURRENT_DATE
 
         ORDER BY
@@ -144,6 +145,7 @@ export async function getTodayPatients(nurseId: number) {
                         ra.nurse_id = $1
                         OR ro.replacement_nurse_id = $1
                     )
+                    AND r.status = 'PUBLISHED'
                     AND ra.shift_date = CURRENT_DATE
 
                 LIMIT 1
@@ -249,6 +251,7 @@ export async function getPatientWorkspace(
                     )
 
                     AND ra.ward_id = a.ward_id
+                    AND r.status = 'PUBLISHED'
                     AND ra.shift_date = CURRENT_DATE
             )
         `,
