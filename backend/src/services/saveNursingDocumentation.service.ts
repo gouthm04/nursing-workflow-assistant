@@ -344,7 +344,7 @@ export async function saveNursingDocumentation(
             );
         }
 
-        // 6. Save consumable usage.
+                // 6. Save consumable usage.
         for (const consumable of data.consumables) {
             if (!consumable.consumable_id) {
                 throw new Error(
@@ -371,7 +371,36 @@ export async function saveNursingDocumentation(
                     `Selected consumable is not available: ${consumable.consumable_id}`
                 );
             }
+
+            await client.query(
+                `
+                INSERT INTO consumable_usage (
+                    admission_id,
+                    consumable_id,
+                    quantity,
+                    used_for_type,
+                    recorded_by,
+                    used_at
+                )
+                VALUES (
+                    $1,
+                    $2,
+                    $3,
+                    $4,
+                    $5,
+                    NOW()
+                )
+                `,
+                [
+                    admissionId,
+                    consumable.consumable_id,
+                    consumable.quantity,
+                    consumable.used_for_type?.trim() || null,
+                    nurseId,
+                ]
+            );
         }
+        
 
         await client.query("COMMIT");
 
