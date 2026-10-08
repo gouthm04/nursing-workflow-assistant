@@ -5,6 +5,9 @@ import {
     getHandoverRecipientController,
     generateHandoverDraftController,
     saveHandoverController,
+    sendHandoverController,
+    acknowledgeHandoverController,
+    getIncomingHandoversController,
 } from "../controllers/handover.controller";
 
 const router = Router();
@@ -28,6 +31,27 @@ router.post(
     authenticateToken,
     requireRole("NURSE"),
     saveHandoverController,
+);
+
+router.get(
+    "/incoming",
+    authenticateToken,
+    requireRole("NURSE"),
+    getIncomingHandoversController
+);
+
+router.post(
+    "/:handoverId/send",
+    authenticateToken,
+    requireRole("NURSE"),
+    sendHandoverController
+);
+
+router.post(
+    "/:handoverId/acknowledge",
+    authenticateToken,
+    requireRole("NURSE"),
+    acknowledgeHandoverController
 );
 
 export default router;

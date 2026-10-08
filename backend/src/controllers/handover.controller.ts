@@ -3,6 +3,9 @@ import {
     getHandoverRecipient,
     generateHandoverDraft,
     saveHandover,
+    sendHandover,
+    acknowledgeHandover,
+    getIncomingHandovers,
 } from "../services/handover.service";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
@@ -181,6 +184,127 @@ export async function saveHandoverController(
             error instanceof Error
                 ? error.message
                 : "Failed to save handover.";
+
+        return res.status(400).json({
+            message,
+        });
+    }
+}
+
+export async function sendHandoverController(
+    req: AuthenticatedRequest,
+    res: Response,
+) {
+    try {
+        const handoverId = Number(req.params.handoverId);
+        const currentNurseId = Number(req.user?.user_id);
+
+        if (
+            !Number.isInteger(handoverId) ||
+            !Number.isInteger(currentNurseId)
+        ) {
+            return res.status(400).json({
+                message: "Invalid handover or nurse.",
+            });
+        }
+
+        const handover = await sendHandover(
+            handoverId,
+            currentNurseId,
+        );
+
+        return res.status(200).json({
+            message: "Handover sent successfully.",
+            handover,
+        });
+    } catch (error) {
+        console.error("Send handover error:", error);
+
+        const message =
+            error instanceof Error
+                ? error.message
+                : "Failed to send handover.";
+
+        return res.status(400).json({
+            message,
+        });
+    }
+}
+
+
+export async function acknowledgeHandoverController(
+    req: AuthenticatedRequest,
+    res: Response,
+) {
+    try {
+        const handoverId = Number(req.params.handoverId);
+        const currentNurseId = Number(req.user?.user_id);
+
+        if (
+            !Number.isInteger(handoverId) ||
+            !Number.isInteger(currentNurseId)
+        ) {
+            return res.status(400).json({
+                message: "Invalid handover or nurse.",
+            });
+        }
+
+        const handover = await acknowledgeHandover(
+            handoverId,
+            currentNurseId,
+        );
+
+        return res.status(200).json({
+            message: "Handover acknowledged successfully.",
+            handover,
+        });
+    } catch (error) {
+        console.error(
+            "Acknowledge handover error:",
+            error,
+        );
+
+        const message =
+            error instanceof Error
+                ? error.message
+                : "Failed to acknowledge handover.";
+
+        return res.status(400).json({
+            message,
+        });
+    }
+}
+
+export async function getIncomingHandoversController(
+    req: AuthenticatedRequest,
+    res: Response,
+) {
+    try {
+        const currentNurseId = Number(req.user?.user_id);
+
+        if (!Number.isInteger(currentNurseId)) {
+            return res.status(400).json({
+                message: "Invalid nurse.",
+            });
+        }
+
+        const handovers = await getIncomingHandovers(
+            currentNurseId,
+        );
+
+        return res.status(200).json({
+            handovers,
+        });
+    } catch (error) {
+        console.error(
+            "Get incoming handovers error:",
+            error,
+        );
+
+        const message =
+            error instanceof Error
+                ? error.message
+                : "Failed to retrieve incoming handovers.";
 
         return res.status(400).json({
             message,

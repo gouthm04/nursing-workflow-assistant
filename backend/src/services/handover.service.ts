@@ -597,13 +597,17 @@ const recipient = await getHandoverRecipient(
 
   const shift = shiftResult.rows[0];
 
-  const shiftStart = new Date(
-  `${currentShiftDate}T${shift.start_time}Z`
+const shiftStart = new Date(
+    `${currentShiftDate}T${shift.start_time}+05:30`
 );
 
 const shiftEnd = new Date(
-  `${currentShiftDate}T${shift.end_time}Z`
+    `${currentShiftDate}T${shift.end_time}+05:30`
 );
+
+if (shiftEnd <= shiftStart) {
+    shiftEnd.setUTCDate(shiftEnd.getUTCDate() + 1);
+}
 
 if (shiftEnd <= shiftStart) {
   shiftEnd.setUTCDate(shiftEnd.getUTCDate() + 1);
@@ -688,4 +692,249 @@ if (shiftEnd <= shiftStart) {
   } finally {
     client.release();
   }
+}
+
+export async function sendHandover(
+  handoverId: number,
+  currentNurseId: number,
+) {
+  const result = await pool.query(
+    `
+    UPDATE handovers
+    SET
+        status = 'SENT',
+        sent_at = NOW()
+    WHERE handover_id = $1
+      AND from_nurse_id = $2
+      AND status = 'DRAFT'
+    RETURNING
+        handover_id,
+        admission_id,
+        from_nurse_id,
+        to_nurse_id,
+        status,
+        created_at,
+        sent_at
+    `,
+    [handoverId, currentNurseId]
+  );
+
+  if (result.rows.length === 0) {
+    const existing = await pool.query(
+      `
+      SELECT
+          handover_id,
+          from_nurse_id,
+          status
+      FROM handovers
+      WHERE handover_id = $1
+      `,
+      [handoverId]
+    );
+
+    if (existing.rows.length === 0) {
+      throw new Error("Handover not found.");
+    }
+
+    if (Number(existing.rows[0].from_nurse_id) !== currentNurseId) {
+      throw new Error(
+        "Only the nurse who created this handover can send it."
+      );
+    }
+
+    if (existing.rows[0].status !== "DRAFT") {
+      throw new Error(
+        `Handover cannot be sent from ${existing.rows[0].status} status.`
+      );
+    }
+
+    throw new Error("Failed to send handover.");
+  }
+
+  return result.rows[0];
+}
+
+
+export async function acknowledgeHandover(
+  handoverId: number,
+  currentNurseId: number,
+) {
+  const result = await pool.query(
+    `
+    UPDATE handovers
+    SET
+        status = 'ACKNOWLEDGED',
+        acknowledged_at = NOW()
+    WHERE handover_id = $1
+      AND to_nurse_id = $2
+      AND status = 'SENT'
+    RETURNING
+        handover_id,
+        admission_id,
+        from_nurse_id,
+        to_nurse_id,
+        status,
+        sent_at,
+        acknowledged_at
+    `,
+    [handoverId, currentNurseId]
+  );
+
+  if (result.rows.length === 0) {
+    const existing = await pool.query(
+      `
+      SELECT
+          handover_id,
+          to_nurse_id,
+          status
+      FROM handovers
+      WHERE handover_id = $1
+      `,
+      [handoverId]
+    );
+
+    if (existing.rows.length === 0) {
+      throw new Error("Handover not found.");
+    }
+
+    if (Number(existing.rows[0].to_nurse_id) !== currentNurseId) {
+      throw new Error(
+        "Only the incoming nurse can acknowledge this handover."
+      );
+    }
+
+    if (existing.rows[0].status !== "SENT") {
+      throw new Error(
+        `Handover cannot be acknowledged from ${existing.rows[0].status} status.`
+      );
+    }
+
+    throw new Error("Failed to acknowledge handover.");
+  }
+
+  return result.rows[0];
+}
+
+export async function getIncomingHandovers(nurseId: number) {
+    const result = await pool.query(
+        `
+        SELECT
+            h.handover_id,
+            h.admission_id,
+            h.from_nurse_id,
+            h.to_nurse_id,
+            h.shift_start,
+            h.shift_end,
+            h.status,
+            h.created_at,
+            h.sent_at,
+            h.acknowledged_at,
+
+            p.uhid,
+            CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
+
+            w.ward_name,
+            b.bed_number,
+
+            sender.full_name AS from_nurse_name,
+
+            hc.situation,
+            hc.background,
+            hc.assessment,
+            hc.recommendation
+
+        FROM handovers h
+
+        JOIN admissions a
+            ON a.admission_id = h.admission_id
+
+        JOIN patients p
+            ON p.patient_id = a.patient_id
+
+        JOIN wards w
+            ON w.ward_id = a.ward_id
+
+        LEFT JOIN beds b
+            ON b.bed_id = a.bed_id
+
+        JOIN users sender
+            ON sender.user_id = h.from_nurse_id
+
+        JOIN handover_content hc
+            ON hc.handover_id = h.handover_id
+
+        JOIN roster_assignments ra
+            ON ra.nurse_id = h.to_nurse_id
+            AND ra.ward_id = a.ward_id
+            AND ra.shift_date = CURRENT_DATE
+
+        JOIN rosters r
+            ON r.roster_id = ra.roster_id
+            AND r.status = 'PUBLISHED'
+
+        JOIN shifts s
+            ON s.shift_id = ra.shift_id
+
+        WHERE h.to_nurse_id = $1
+          AND h.status IN ('SENT', 'ACKNOWLEDGED')
+
+          AND NOW() >=
+              (
+                  CURRENT_DATE
+                  + s.start_time
+              )
+
+          AND NOW() <
+              (
+                  CURRENT_DATE
+                  + s.end_time
+                  + CASE
+                      WHEN s.end_time <= s.start_time
+                      THEN INTERVAL '1 day'
+                      ELSE INTERVAL '0 day'
+                    END
+              )
+
+        ORDER BY
+            CASE
+                WHEN h.status = 'SENT' THEN 0
+                ELSE 1
+            END,
+            h.sent_at DESC
+        `,
+        [nurseId]
+    );
+
+    return result.rows.map((row) => ({
+        handover_id: row.handover_id,
+        admission_id: row.admission_id,
+        from_nurse_id: row.from_nurse_id,
+        to_nurse_id: row.to_nurse_id,
+
+        patient: {
+            uhid: row.uhid,
+            name: row.patient_name,
+        },
+
+        ward_name: row.ward_name,
+        bed_number: row.bed_number,
+
+        from_nurse_name: row.from_nurse_name,
+
+        shift_start: row.shift_start,
+        shift_end: row.shift_end,
+
+        status: row.status,
+
+        created_at: row.created_at,
+        sent_at: row.sent_at,
+        acknowledged_at: row.acknowledged_at,
+
+        content: {
+            situation: row.situation,
+            background: row.background,
+            assessment: row.assessment,
+            recommendation: row.recommendation,
+        },
+    }));
 }
