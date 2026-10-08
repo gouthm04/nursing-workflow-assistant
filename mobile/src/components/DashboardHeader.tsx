@@ -1,109 +1,130 @@
 import React from "react";
 import {
-    Alert,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+
 import { getStoredUser, logout } from "../services/auth";
+import { colors, spacing, typography } from "../theme";
 
 export default function DashboardHeader() {
-    async function handleLogout() {
-        await logout();
+  const [user, setUser] = React.useState<any>(null);
 
-        Alert.alert(
-            "Logged out",
-            "You have been logged out successfully.",
-            [
-                {
-                    text: "OK",
-                    onPress: () => router.replace("/"),
-                },
-            ]
-        );
+  React.useEffect(() => {
+    async function loadUser() {
+      const storedUser = await getStoredUser();
+      setUser(storedUser);
     }
 
-    const [user, setUser] = React.useState<any>(null);
+    loadUser();
+  }, []);
 
-    React.useEffect(() => {
-        async function loadUser() {
-            const storedUser = await getStoredUser();
-            setUser(storedUser);
-        }
+  async function handleLogout() {
+    await logout();
 
-        loadUser();
-    }, []);
+    Alert.alert("Logged out", "You have been logged out successfully.", [
+      {
+        text: "OK",
+        onPress: () => router.replace("/"),
+      },
+    ]);
+  }
 
-    return (
-        <SafeAreaView edges={["top"]} style={styles.safeArea}>
-            <View style={styles.header}>
-                <View style={styles.userSection}>
-                    <Text style={styles.appName}>
-                        Nursing Workflow Assistant
-                    </Text>
+  return (
+    <SafeAreaView edges={["top"]} style={styles.safeArea}>
+      <View style={styles.header}>
+        <View style={styles.brandSection}>
+          <View style={styles.logo}>
+            <Ionicons
+              name="medical"
+              size={20}
+              color={colors.primary}
+            />
+          </View>
 
-                    {user && (
-                        <Text style={styles.userInfo}>
-                            {user.full_name} • {user.role}
-                        </Text>
-                    )}
-                </View>
+          <View>
+            <Text style={styles.appName}>NurA</Text>
 
-                <TouchableOpacity
-                    style={styles.logoutButton}
-                    onPress={handleLogout}
-                >
-                    <Text style={styles.logoutText}>
-                        Logout
-                    </Text>
-                </TouchableOpacity>
-            </View>
-        </SafeAreaView>
-    );
+            {user && (
+              <Text style={styles.userInfo}>
+                {user.full_name}
+              </Text>
+            )}
+          </View>
+        </View>
+
+        <Pressable
+          style={styles.profileButton}
+          onPress={handleLogout}
+          accessibilityLabel="Logout"
+        >
+          <Ionicons
+            name="log-out-outline"
+            size={21}
+            color={colors.textSecondary}
+          />
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    safeArea: {
-        width: "100%",
-    },
+  safeArea: {
+    backgroundColor: colors.background,
+  },
 
-    header: {
-        width: "100%",
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        borderBottomWidth: 1,
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-    },
+  header: {
+    minHeight: 68,
+    paddingHorizontal: spacing.xl,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
 
-    userSection: {
-        flex: 1,
-        marginRight: 12,
-    },
+  brandSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
 
-    appName: {
-        fontSize: 18,
-        fontWeight: "bold",
-    },
+  logo: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
-    userInfo: {
-        fontSize: 13,
-        marginTop: 4,
-    },
+  appName: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.text,
+    letterSpacing: -0.2,
+  },
 
-    logoutButton: {
-        paddingHorizontal: 16,
-        paddingVertical: 9,
-        borderWidth: 1,
-        borderRadius: 8,
-    },
+  userInfo: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: "500",
+    color: colors.textSecondary,
+  },
 
-    logoutText: {
-        fontSize: 14,
-        fontWeight: "600",
-    },
+  profileButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });
