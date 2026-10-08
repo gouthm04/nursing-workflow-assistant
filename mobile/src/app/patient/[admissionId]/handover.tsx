@@ -50,12 +50,19 @@ export default function HandoverScreen() {
   const [draft, setDraft] = useState<SBARDraft | null>(null);
 
   const [loading, setLoading] = useState(false);
+  const [savedHandoverId, setSavedHandoverId] = useState<number | null>(null);
+  const [handoverStatus, setHandoverStatus] = useState<"DRAFT" | "SENT" | null>(
+    null,
+  );
+
+  const [recipientError, setRecipientError] = useState<string | null>(null);
 
   useEffect(() => {
     loadRecipient();
   }, []);
 
   async function loadRecipient() {
+    setRecipientError(null);
     try {
       setLoading(true);
 
@@ -66,14 +73,7 @@ export default function HandoverScreen() {
         return;
       }
 
-      /*
-       * For this first MVP test we are using:
-       * Morning shift = 1
-       * October 3, 2026
-       *
-       * Later this will come from the nurse's
-       * actual current roster assignment.
-       */
+
       const response = await fetch(
         `${API_URL}/api/handovers/recipient/${admissionId}?shiftId=${shiftId}&shiftDate=${shiftDate}`,
         {
@@ -91,15 +91,17 @@ export default function HandoverScreen() {
 
       setRecipient(data);
     } catch (error) {
-      console.error("Load handover recipient error:", error);
+  console.error("Load handover recipient error:", error);
 
-      Alert.alert(
-        "Error",
-        error instanceof Error
-          ? error.message
-          : "Failed to determine incoming nurse.",
-      );
-    } finally {
+  const message =
+    error instanceof Error
+      ? error.message
+      : "Failed to determine incoming nurse.";
+
+  setRecipientError(message);
+
+  Alert.alert("Handover Unavailable", message);
+} finally {
       setLoading(false);
     }
   }
@@ -193,15 +195,12 @@ export default function HandoverScreen() {
         throw new Error(data.message || "Failed to save handover.");
       }
 
+      setSavedHandoverId(Number(data.handover.handover_id));
+      setHandoverStatus("DRAFT");
+
       Alert.alert(
         "Handover Saved",
-        "The handover draft has been saved successfully.",
-        [
-          {
-            text: "OK",
-            onPress: () => router.back(),
-          },
-        ],
+        "The handover draft has been saved. You can now send it to the incoming nurse.",
       );
     } catch (error) {
       console.error("Save handover error:", error);
@@ -215,6 +214,61 @@ export default function HandoverScreen() {
     }
   }
 
+  async function sendHandover() {
+    if (!savedHandoverId) {
+      Alert.alert("Handover Not Saved", "Save the handover before sending it.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const token = await getStoredToken();
+
+      if (!token) {
+        Alert.alert("Authentication required", "Please log in again.");
+        return;
+      }
+
+      const response = await fetch(
+        `${API_URL}/api/handovers/${savedHandoverId}/send`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to send handover.");
+      }
+
+      setHandoverStatus("SENT");
+
+      Alert.alert(
+        "Handover Sent",
+        "The handover has been sent to the incoming nurse.",
+        [
+          {
+            text: "OK",
+            onPress: () => router.back(),
+          },
+        ],
+      );
+    } catch (error) {
+      console.error("Send handover error:", error);
+
+      Alert.alert(
+        "Send Failed",
+        error instanceof Error ? error.message : "Failed to send handover.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
   function updateDraft(field: keyof SBARDraft, value: string) {
     if (!draft) {
       return;
@@ -275,11 +329,28 @@ export default function HandoverScreen() {
                 </Text>
               </Text>
             </>
-          ) : (
-            <Text style={styles.helperText}>
-              Incoming nurse information is not available.
-            </Text>
-          )}
+          ) :
+            recipientError ? (
+  <View>
+    <Text style={styles.errorTitle}>
+      Handover unavailable
+    </Text>
+
+    <Text style={styles.errorText}>
+      {recipientError}
+    </Text>
+
+    <Text style={styles.helperText}>
+      You can create a handover only when you are authorized
+      for this patient during the selected shift.
+    </Text>
+  </View>
+) : (
+  <Text style={styles.helperText}>
+    Incoming nurse information is not available.
+  </Text>
+)}
+
         </View>
 
         <View style={styles.card}>
@@ -291,9 +362,12 @@ export default function HandoverScreen() {
           </Text>
 
           <Pressable
-            style={[styles.generateButton, loading && styles.disabledButton]}
-            onPress={generateDraft}
-            disabled={loading}
+           style={[
+  styles.saveButton,
+  (loading || !recipient || !!recipientError) && styles.disabledButton,
+]}
+onPress={generateDraft}
+disabled={loading || !recipient || !!recipientError}
           >
             {loading ? (
               <View style={styles.loadingRow}>
@@ -371,9 +445,12 @@ export default function HandoverScreen() {
               </Text>
 
               <Pressable
-                style={[styles.saveButton, loading && styles.disabledButton]}
+                style={[
+  styles.generateButton,
+  (loading || !recipient || recipientError) && styles.disabledButton,
+]}
                 onPress={saveHandover}
-                disabled={loading}
+                disabled={loading || !recipient || !!recipientError}
               >
                 {loading ? (
                   <View style={styles.loadingRow}>
@@ -384,6 +461,23 @@ export default function HandoverScreen() {
                   <Text style={styles.buttonText}>Save Handover</Text>
                 )}
               </Pressable>
+
+              {savedHandoverId && handoverStatus === "DRAFT" && (
+                <Pressable
+                  style={[styles.sendButton, loading && styles.disabledButton]}
+                  onPress={sendHandover}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <View style={styles.loadingRow}>
+                      <ActivityIndicator color="#ffffff" />
+                      <Text style={styles.buttonText}>Sending...</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.buttonText}>Send Handover</Text>
+                  )}
+                </Pressable>
+              )}
             </View>
           </View>
         )}
@@ -469,14 +563,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 4,
   },
+  errorTitle: {
+  fontSize: 16,
+  fontWeight: "700",
+  color: "#222222",
+  marginBottom: 6,
+},
+
+errorText: {
+  color: "#555555",
+  lineHeight: 20,
+  marginBottom: 10,
+},
 
   saveButton: {
-        backgroundColor: "#111111",
-        borderRadius: 10,
-        paddingVertical: 14,
-        alignItems: "center",
-        marginTop: 12,
-    },
+    backgroundColor: "#111111",
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 12,
+  },
+
+  sendButton: {
+    backgroundColor: "#333333",
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 12,
+  },
 
   disabledButton: {
     opacity: 0.6,

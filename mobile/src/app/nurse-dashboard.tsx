@@ -167,6 +167,17 @@ export default function NurseDashboard() {
                   Prepare and review patient handovers
                 </Text>
               </Pressable>
+
+              <Pressable
+                style={styles.actionCard}
+                onPress={() => router.push("/incoming-handovers")}
+              >
+                <Text style={styles.actionTitle}>Incoming Handovers</Text>
+
+                <Text style={styles.actionDescription}>
+                  Review handovers received from the previous shift
+                </Text>
+              </Pressable>
             </View>
           </>
         )}

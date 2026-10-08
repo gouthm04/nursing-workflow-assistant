@@ -39,6 +39,7 @@ export default function HandoverScreen() {
   const [loading, setLoading] = useState(true);
   const [assignment, setAssignment] = useState<Assignment | null>(null);
 
+
   useEffect(() => {
     loadPatients();
   }, []);
